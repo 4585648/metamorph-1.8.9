@@ -66,32 +66,20 @@ public class CommonForgeEventHandler {
         // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
         if (morphId == 65 || morphId == 61 || morphId == 56) {
             if (!player.capabilities.isCreativeMode) {
-                player.capabilities.allowFlying = true;
-                player.fallDistance = 0; // 免疫摔落伤害
-
-                // 手动控制升降
-                if (player.movementInput.jump) {
-                    player.motionY += 0.1D;
-                } else if (player.movementInput.sneak) {
-                    player.motionY -= 0.1D;
-                } else {
-                    // 悬停或缓慢下降
-                    if (player.motionY < 0) {
-                        player.motionY *= 0.6D;
-                    }
-                }
-                
-                // 给客户端同步状态
-                if (player.ticksExisted % 20 == 0) {
+                if (!player.capabilities.allowFlying) {
+                    player.capabilities.allowFlying = true;
                     player.sendPlayerAbilities();
                 }
+                player.fallDistance = 0;
             }
         } else if (morphId == 0) {
             // 恢复原状时取消飞行
-            if (!player.capabilities.isCreativeMode && !player.worldObj.isRemote) {
-                player.capabilities.allowFlying = false;
-                player.capabilities.isFlying = false;
-                player.sendPlayerAbilities();
+            if (!player.capabilities.isCreativeMode) {
+                if (player.capabilities.allowFlying) {
+                    player.capabilities.allowFlying = false;
+                    player.capabilities.isFlying = false;
+                    player.sendPlayerAbilities();
+                }
             }
         }
     }
@@ -197,4 +185,4 @@ public class CommonForgeEventHandler {
             MorphApi.applySize(event.entityPlayer, MorphApi.getMorphId(event.entityPlayer));
         }
     }
-}
+                    }
