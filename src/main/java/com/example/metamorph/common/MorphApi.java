@@ -104,7 +104,7 @@ public class MorphApi {
 
     private static float getMaxHealthById(int morphId) {
         switch (morphId) {
-            case 40: return 40.0F; // Enderman
+            case 58: return 40.0F; // Enderman
             case 54: // Zombie
             case 51: // Skeleton
             case 50: // Creeper
