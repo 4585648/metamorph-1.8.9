@@ -97,12 +97,8 @@ public class ClientEventHandler {
             event.setCanceled(true);
 
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            try {
-                // 使用 renderEntityStatic，它能绕过部分视锥体剔除，更适合渲染替换模型
-                renderManager.renderEntityStatic(morph, event.partialRenderTick, false);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            // 去掉 try-catch，让错误暴露出来
+            renderManager.renderEntitySimple(morph, event.partialRenderTick);
         }
 
         private void clearCache(UUID uuid) {
@@ -123,6 +119,9 @@ public class ClientEventHandler {
             if (!(entity instanceof EntityLivingBase)) return null;
 
             EntityLivingBase living = (EntityLivingBase) entity;
+            // 分配一个绝对不冲突的负数 ID，防止底层渲染器认为它与玩家或世界实体冲突而跳过
+            living.setEntityId(-100 - Math.abs(uuid.hashCode() % 10000));
+            
             morphEntities.put(uuid, living);
             morphEntityIds.put(uuid, morphId);
             return living;
@@ -130,8 +129,6 @@ public class ClientEventHandler {
 
         private void syncFromPlayer(EntityPlayer player, EntityLivingBase entity) {
             entity.worldObj = player.worldObj;
-            
-            // 强制设置坐标和旋转，确保包围盒和朝向同步
             entity.setPositionAndRotation(player.posX, player.posY, player.posZ, player.rotationYaw, player.rotationPitch);
 
             entity.prevPosX = player.prevPosX;
@@ -141,14 +138,15 @@ public class ClientEventHandler {
             entity.lastTickPosY = player.lastTickPosY;
             entity.lastTickPosZ = player.lastTickPosZ;
 
+            // 强制同步所有的旋转参数
             entity.rotationYaw = player.rotationYaw;
-            entity.prevRotationYaw = player.prevRotationYaw;
+            entity.prevRotationYaw = player.rotationYaw;
             entity.rotationPitch = player.rotationPitch;
-            entity.prevRotationPitch = player.prevRotationPitch;
+            entity.prevRotationPitch = player.rotationPitch;
             entity.rotationYawHead = player.rotationYawHead;
-            entity.prevRotationYawHead = player.prevRotationYawHead;
+            entity.prevRotationYawHead = player.rotationYawHead;
             entity.renderYawOffset = player.renderYawOffset;
-            entity.prevRenderYawOffset = player.prevRenderYawOffset;
+            entity.prevRenderYawOffset = player.renderYawOffset;
 
             entity.setSneaking(player.isSneaking());
             entity.setSprinting(player.isSprinting());
@@ -156,9 +154,9 @@ public class ClientEventHandler {
 
             entity.limbSwing = player.limbSwing;
             entity.limbSwingAmount = player.limbSwingAmount;
-            entity.prevLimbSwingAmount = player.prevLimbSwingAmount;
+            entity.prevLimbSwingAmount = player.limbSwingAmount;
             entity.swingProgress = player.swingProgress;
-            entity.prevSwingProgress = player.prevSwingProgress;
+            entity.prevSwingProgress = player.swingProgress;
 
             entity.hurtTime = player.hurtTime;
             entity.deathTime = player.deathTime;
@@ -168,7 +166,7 @@ public class ClientEventHandler {
             
             entity.ticksExisted = player.ticksExisted;
 
-            // 针对无手部模型的特殊实体，跳过装备同步
+            // 针对无手部模型的特殊实体，跳过装备同步，防止渲染层崩溃
             if (entity.getClass().getName().contains("Enderman") || 
                 entity.getClass().getName().contains("Creeper") || 
                 entity.getClass().getName().contains("Slime") || 
@@ -177,11 +175,9 @@ public class ClientEventHandler {
                 return;
             }
 
-            try {
-                for (int slot = 0; slot < 5; slot++) {
-                    entity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
-                }
-            } catch (Exception ignored) {}
+            for (int slot = 0; slot < 5; slot++) {
+                entity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
+            }
         }
     }
-}
+                }
