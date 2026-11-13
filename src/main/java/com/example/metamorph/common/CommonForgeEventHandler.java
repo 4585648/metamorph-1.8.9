@@ -1,9 +1,11 @@
 package com.example.metamorph.common;
 
+import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.BlockPos;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -41,7 +43,7 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
-        // 新增：变形为僵尸(54)或骷髅(51)时的白天燃烧逻辑
+        // 变形为僵尸(54)或骷髅(51)时的白天燃烧逻辑
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -51,6 +53,24 @@ public class CommonForgeEventHandler {
                     if (player.worldObj.rand.nextFloat() * 30.0F < (brightness - 0.4F) * 2.0F) {
                         player.setFire(8);
                     }
+                }
+            }
+        }
+    }
+
+    // 新增：拦截敌对生物对变形玩家的主动索敌
+    @SubscribeEvent
+    public void onSetAttackTarget(LivingSetAttackTargetEvent event) {
+        // 如果目标玩家处于变形状态，且攻击者是敌对生物（IMob）
+        if (event.target instanceof EntityPlayer && event.entityLiving instanceof IMob) {
+            EntityPlayer player = (EntityPlayer) event.target;
+            MorphData data = MorphData.get(player);
+
+            if (data != null && data.getMorphId() != 0) {
+                // 检查该怪物是否是因为受到玩家攻击而产生了“复仇目标”
+                // 如果复仇目标不是这个玩家，说明怪物是主动想打玩家，此时取消它的攻击目标
+                if (event.entityLiving.getRevengeTarget() != player) {
+                    event.setCanceled(true);
                 }
             }
         }
