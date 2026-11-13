@@ -38,26 +38,30 @@ public class CommonForgeEventHandler {
         }
     }
 
-    // 新增：击杀生物解锁变形
+    // 修正击杀解锁逻辑，兼容远程击杀，直接通过实体 ID 匹配
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
+        if (event.entity.worldObj.isRemote) return;
+
         Entity source = event.source.getEntity();
-        if (source instanceof EntityPlayerMP && !event.entity.worldObj.isRemote) {
-            EntityPlayerMP player = (EntityPlayerMP) source;
-            String entityName = EntityList.getEntityString(event.entity);
+        EntityPlayerMP player = null;
+
+        if (source instanceof EntityPlayerMP) {
+            player = (EntityPlayerMP) source;
+        } else if (event.source.getSourceOfDamage() instanceof EntityPlayerMP) {
+            player = (EntityPlayerMP) event.source.getSourceOfDamage();
+        }
+
+        if (player != null) {
+            int entityId = EntityList.getEntityID(event.entity);
+            MorphEntry entry = MorphRegistry.get(entityId);
             
-            if (entityName != null) {
-                String cleanName = entityName.replace("minecraft:", "");
-                for (MorphEntry entry : MorphRegistry.getAll()) {
-                    if (entry.name.equalsIgnoreCase(cleanName)) {
-                        MorphData data = MorphData.get(player);
-                        if (data != null && !data.isUnlocked(entry.id)) {
-                            data.unlock(entry.id);
-                            player.addChatMessage(new ChatComponentText("§a你解锁了新的变形: " + entry.name));
-                            MetamorphMod.network.sendTo(new MorphUnlockMessage(data.getUnlocked()), player);
-                        }
-                        break;
-                    }
+            if (entry != null) {
+                MorphData data = MorphData.get(player);
+                if (data != null && !data.isUnlocked(entry.id)) {
+                    data.unlock(entry.id);
+                    player.addChatMessage(new ChatComponentText("§a你解锁了新的变形: " + entry.name));
+                    MetamorphMod.network.sendTo(new MorphUnlockMessage(data.getUnlocked()), player);
                 }
             }
         }
@@ -228,4 +232,4 @@ public class CommonForgeEventHandler {
             MorphApi.applySize(event.entityPlayer, MorphApi.getMorphId(event.entityPlayer));
         }
     }
-                }
+                                                }
