@@ -1,13 +1,16 @@
 package com.example.metamorph.common;
 
+import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.BlockPos;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
-import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.List;
 
 public class CommonForgeEventHandler {
 
@@ -56,21 +59,17 @@ public class CommonForgeEventHandler {
                 }
             }
         }
-    }
 
-    // 新增：拦截敌对生物对变形玩家的主动索敌
-    @SubscribeEvent
-    public void onSetAttackTarget(LivingSetAttackTargetEvent event) {
-        // 如果目标玩家处于变形状态，且攻击者是敌对生物（IMob）
-        if (event.target instanceof EntityPlayer && event.entityLiving instanceof IMob) {
-            EntityPlayer player = (EntityPlayer) event.target;
-            MorphData data = MorphData.get(player);
-
-            if (data != null && data.getMorphId() != 0) {
-                // 检查该怪物当前的AI目标是否是此玩家（如果是被玩家打了，AI目标就会变成玩家）
-                // 如果不是，说明怪物是主动想打玩家，此时取消它的攻击目标
-                if (event.entityLiving.getAITarget() != player) {
-                    event.setCanceled(true);
+        // 新增：如果玩家处于变形状态，强制清除周围敌对生物对玩家的主动索敌
+        if (morphId != 0) {
+            List<EntityLivingBase> entities = player.worldObj.getEntitiesWithinAABB(EntityLivingBase.class, player.getEntityBoundingBox().expand(16.0D, 16.0D, 16.0D));
+            for (EntityLivingBase entity : entities) {
+                if (entity instanceof EntityLiving && entity instanceof IMob) {
+                    EntityLiving mob = (EntityLiving) entity;
+                    // 如果怪物的目标是该玩家，且该怪物没有被玩家打过（复仇目标不是玩家）
+                    if (mob.getAttackTarget() == player && mob.getAITarget() != player) {
+                        mob.setAttackTarget(null);
+                    }
                 }
             }
         }
