@@ -15,10 +15,17 @@ public class MorphAbilities {
         public void onUpdate(EntityPlayer p) {}
     }
 
-    // 蜘蛛：原版无特殊被动（爬墙需专门逻辑，这里暂不处理）
+    // 蜘蛛：原版无特殊被动
     public static class SpiderAbility implements IMorphAbility {
         public void onMorphStart(EntityPlayer p) {}
         public void onMorphEnd(EntityPlayer p) {}
+        public void onUpdate(EntityPlayer p) {}
+    }
+
+    // 史莱姆：跳跃提升（原版特性）
+    public static class SlimeAbility implements IMorphAbility {
+        public void onMorphStart(EntityPlayer p) { p.addPotionEffect(new PotionEffect(Potion.jump.id, Integer.MAX_VALUE, 2, true, false)); }
+        public void onMorphEnd(EntityPlayer p) { p.removePotionEffect(Potion.jump.id); }
         public void onUpdate(EntityPlayer p) {}
     }
 
