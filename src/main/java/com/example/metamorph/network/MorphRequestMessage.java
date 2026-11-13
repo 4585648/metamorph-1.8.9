@@ -57,16 +57,12 @@ public class MorphRequestMessage implements IMessage {
 
             final EntityPlayerMP player = ctx.getServerHandler().playerEntity;
 
-            player.worldObj.addScheduledTask(new Runnable() {
-                @Override
-                public void run() {
-                    if (message.getAction() == 1) {
-                        CommonForgeEventHandler.triggerSkill(player);
-                    } else {
-                        MorphApi.setMorph(player, message.getMorphId(), false);
-                    }
-                }
-            });
+            // 1.8.9 直接在主线程处理，无需 addScheduledTask
+            if (message.getAction() == 1) {
+                CommonForgeEventHandler.triggerSkill(player);
+            } else {
+                MorphApi.setMorph(player, message.getMorphId(), false);
+            }
 
             return null;
         }
