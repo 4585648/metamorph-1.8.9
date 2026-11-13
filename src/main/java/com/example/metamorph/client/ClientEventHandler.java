@@ -7,7 +7,6 @@ import com.example.metamorph.common.MorphEntry;
 import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
@@ -83,20 +82,23 @@ public class ClientEventHandler {
             }
 
             EntityLivingBase morph = getOrCreateMorphEntity(player, entry.id);
-            if (morph == null) return;
+            if (morph == null) {
+                return; // 创建失败，继续渲染玩家模型
+            }
 
+            // 同步位置和状态
             syncFromPlayer(player, morph);
+
+            // 取消原版玩家渲染
             event.setCanceled(true);
 
+            // 恢复使用最稳定的原生渲染方法
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            
-            // 修正泛型问题，使用 Render<Entity>
-            Render<Entity> render = renderManager.getEntityRenderObject(morph);
-            
-            if (render != null) {
-                render.doRender(morph, player.posX - renderManager.viewerPosX, player.posY - renderManager.viewerPosY, player.posZ - renderManager.viewerPosZ, player.rotationYaw, event.partialRenderTick);
-            } else {
+            try {
                 renderManager.renderEntitySimple(morph, event.partialRenderTick);
+            } catch (Exception e) {
+                // 如果渲染末影人等特殊实体时崩溃，捕获异常并跳过，防止整个游戏闪退
+                e.printStackTrace();
             }
         }
 
@@ -127,7 +129,6 @@ public class ClientEventHandler {
         }
 
         private void syncFromPlayer(EntityPlayer player, EntityLivingBase entity) {
-            entity.worldObj = player.worldObj;
             entity.setPosition(player.posX, player.posY, player.posZ);
 
             entity.prevPosX = player.prevPosX;
@@ -164,9 +165,21 @@ public class ClientEventHandler {
             
             entity.ticksExisted = player.ticksExisted;
 
-            for (int slot = 0; slot < 5; slot++) {
-                entity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
+            // 针对末影人等没有物品渲染层的生物，屏蔽装备同步以防渲染崩溃
+            if (entity.getClass().getName().contains("Enderman") || 
+                entity.getClass().getName().contains("Creeper") || 
+                entity.getClass().getName().contains("Slime") || 
+                entity.getClass().getName().contains("Squid") ||
+                entity.getClass().getName().contains("Ghast")) {
+                return;
+            }
+
+            try {
+                for (int slot = 0; slot < 5; slot++) {
+                    entity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
+                }
+            } catch (Exception ignored) {
             }
         }
     }
-}
+                }
