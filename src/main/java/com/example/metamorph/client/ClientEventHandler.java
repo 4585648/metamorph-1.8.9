@@ -74,7 +74,6 @@ public class ClientEventHandler {
                             // 使用负数 ID 防止与服务端真实实体冲突
                             mob.setEntityId(-player.getEntityId());
                             mob.noClip = true; // 穿透方块
-                            mob.setEntityInvulnerable(true); // 无敌，防止被其他玩家/生物攻击
                             mob.setAlwaysRenderNameTag(false);
                             mc.theWorld.spawnEntityInWorld(mob);
                             clientMobs.put(player.getUniqueID(), mob);
