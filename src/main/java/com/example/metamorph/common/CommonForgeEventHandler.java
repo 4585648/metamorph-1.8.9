@@ -1,5 +1,9 @@
 package com.example.metamorph.common;
 
+import com.example.metamorph.MetamorphMod;
+import com.example.metamorph.network.MorphUnlockMessage;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityZombie;
 import net.minecraft.entity.monster.IMob;
@@ -13,6 +17,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -33,6 +38,31 @@ public class CommonForgeEventHandler {
         }
     }
 
+    // 新增：击杀生物解锁变形
+    @SubscribeEvent
+    public void onLivingDeath(LivingDeathEvent event) {
+        Entity source = event.source.getEntity();
+        if (source instanceof EntityPlayerMP && !event.entity.worldObj.isRemote) {
+            EntityPlayerMP player = (EntityPlayerMP) source;
+            String entityName = EntityList.getEntityString(event.entity);
+            
+            if (entityName != null) {
+                String cleanName = entityName.replace("minecraft:", "");
+                for (MorphEntry entry : MorphRegistry.getAll()) {
+                    if (entry.name.equalsIgnoreCase(cleanName)) {
+                        MorphData data = MorphData.get(player);
+                        if (data != null && !data.isUnlocked(entry.id)) {
+                            data.unlock(entry.id);
+                            player.addChatMessage(new ChatComponentText("§a你解锁了新的变形: " + entry.name));
+                            MetamorphMod.network.sendTo(new MorphUnlockMessage(data.getUnlocked()), player);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     @SubscribeEvent
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
         if (!(event.entity instanceof EntityPlayer)) return;
@@ -50,7 +80,6 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
-        // 僵尸/骷髅白天燃烧
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -63,7 +92,6 @@ public class CommonForgeEventHandler {
             }
         }
 
-        // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
         if (morphId == 65 || morphId == 61 || morphId == 56) {
             if (!player.capabilities.isCreativeMode) {
                 if (!player.capabilities.allowFlying) {
@@ -73,7 +101,6 @@ public class CommonForgeEventHandler {
                 player.fallDistance = 0;
             }
         } else {
-            // 修正：只要不是这三种飞行生物（包括变成末影人、僵尸或变回玩家0），一律取消飞行
             if (!player.capabilities.isCreativeMode) {
                 if (player.capabilities.allowFlying) {
                     player.capabilities.allowFlying = false;
@@ -154,9 +181,7 @@ public class CommonForgeEventHandler {
             MorphData data = MorphData.get(player);
 
             if (data != null && data.getMorphId() != 0) {
-                if (data.getMorphId() == 120 && event.entityLiving instanceof EntityZombie) {
-                    return;
-                }
+                if (data.getMorphId() == 120 && event.entityLiving instanceof EntityZombie) return;
 
                 EntityLiving mob = (EntityLiving) event.entityLiving;
                 if (mob.getAITarget() != player) {
@@ -173,9 +198,7 @@ public class CommonForgeEventHandler {
             MorphData data = MorphData.get(player);
 
             if (data != null && data.getMorphId() != 0) {
-                if (data.getMorphId() == 120 && event.source.getEntity() instanceof EntityZombie) {
-                    return;
-                }
+                if (data.getMorphId() == 120 && event.source.getEntity() instanceof EntityZombie) return;
 
                 if (event.source.getEntity() instanceof EntityLiving && event.source.getEntity() instanceof IMob) {
                     EntityLiving mob = (EntityLiving) event.source.getEntity();
@@ -196,10 +219,13 @@ public class CommonForgeEventHandler {
 
         if (oldData != null && newData != null) {
             newData.setMorphId(oldData.getMorphId());
+            for (Integer id : oldData.getUnlocked()) {
+                newData.unlock(id);
+            }
         }
 
         if (!event.entityPlayer.worldObj.isRemote) {
             MorphApi.applySize(event.entityPlayer, MorphApi.getMorphId(event.entityPlayer));
         }
     }
-}
+                }
