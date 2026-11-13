@@ -14,7 +14,7 @@ public class MorphManager {
     private static final Map<UUID, Integer> clientMorphs = new ConcurrentHashMap<UUID, Integer>();
     
     // 使用线程安全的集合
-    private static final Set<Integer> unlockedClient = Collections.synchronizedSet(new HashSet<Integer>());
+    public static final Set<Integer> unlockedClient = Collections.synchronizedSet(new HashSet<Integer>());
 
     public static int getClient(UUID uuid) {
         Integer value = clientMorphs.get(uuid);
@@ -38,6 +38,10 @@ public class MorphManager {
     }
 
     public static boolean isUnlockedClient(int id) {
+        // 兜底：如果服务端没发数据，或者列表为空，默认全部可见，防止UI彻底卡死
+        if (unlockedClient.size() <= 1) {
+            return true; 
+        }
         return id == 0 || unlockedClient.contains(id);
     }
 }
