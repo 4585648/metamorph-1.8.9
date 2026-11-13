@@ -62,6 +62,38 @@ public class CommonForgeEventHandler {
                 }
             }
         }
+
+        // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
+        if (morphId == 65 || morphId == 61 || morphId == 56) {
+            if (!player.capabilities.isCreativeMode) {
+                player.capabilities.allowFlying = true;
+                player.fallDistance = 0; // 免疫摔落伤害
+
+                // 手动控制升降
+                if (player.movementInput.jump) {
+                    player.motionY += 0.1D;
+                } else if (player.movementInput.sneak) {
+                    player.motionY -= 0.1D;
+                } else {
+                    // 悬停或缓慢下降
+                    if (player.motionY < 0) {
+                        player.motionY *= 0.6D;
+                    }
+                }
+                
+                // 给客户端同步状态
+                if (player.ticksExisted % 20 == 0) {
+                    player.sendPlayerAbilities();
+                }
+            }
+        } else if (morphId == 0) {
+            // 恢复原状时取消飞行
+            if (!player.capabilities.isCreativeMode && !player.worldObj.isRemote) {
+                player.capabilities.allowFlying = false;
+                player.capabilities.isFlying = false;
+                player.sendPlayerAbilities();
+            }
+        }
     }
 
     @SubscribeEvent
@@ -71,7 +103,6 @@ public class CommonForgeEventHandler {
             MorphData data = MorphData.get(player);
 
             if (data != null && data.getMorphId() != 0) {
-                // 特例：如果玩家是村民(120)，且怪物是僵尸，则允许主动攻击
                 if (data.getMorphId() == 120 && event.entityLiving instanceof EntityZombie) {
                     return;
                 }
@@ -91,7 +122,6 @@ public class CommonForgeEventHandler {
             MorphData data = MorphData.get(player);
 
             if (data != null && data.getMorphId() != 0) {
-                // 特例：如果玩家是村民(120)，且伤害源是僵尸，则不取消伤害
                 if (data.getMorphId() == 120 && event.source.getEntity() instanceof EntityZombie) {
                     return;
                 }
@@ -117,8 +147,6 @@ public class CommonForgeEventHandler {
 
         int morphId = data.getMorphId();
         if (player.worldObj.isRemote) return; 
-
-        // 注意：骷髅(51)的射箭功能已移除。
 
         if (morphId == 50) { // 苦力怕爆炸
             player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
