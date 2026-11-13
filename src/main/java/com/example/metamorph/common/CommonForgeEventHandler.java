@@ -4,19 +4,27 @@ import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityZombie;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.entity.projectile.EntityLargeFireball;
 import net.minecraft.entity.projectile.EntitySmallFireball;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class CommonForgeEventHandler {
+
+    private static final Map<UUID, Long> cooldowns = new HashMap<UUID, Long>();
 
     @SubscribeEvent
     public void onEntityConstruct(EntityEvent.EntityConstructing event) {
@@ -27,21 +35,13 @@ public class CommonForgeEventHandler {
 
     @SubscribeEvent
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
-        if (!(event.entity instanceof EntityPlayer)) {
-            return;
-        }
+        if (!(event.entity instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.entity;
-
-        if (player.worldObj.isRemote) {
-            return;
-        }
+        if (player.worldObj.isRemote) return;
 
         MorphData data = MorphData.get(player);
-
-        if (data == null) {
-            return;
-        }
+        if (data == null) return;
 
         int morphId = data.getMorphId();
         MorphEntry entry = MorphRegistry.get(morphId);
@@ -50,7 +50,6 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
-        // 僵尸/骷髅白天燃烧
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -63,7 +62,6 @@ public class CommonForgeEventHandler {
             }
         }
 
-        // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
         if (morphId == 65 || morphId == 61 || morphId == 56) {
             if (!player.capabilities.isCreativeMode) {
                 if (!player.capabilities.allowFlying) {
@@ -73,7 +71,6 @@ public class CommonForgeEventHandler {
                 player.fallDistance = 0;
             }
         } else if (morphId == 0) {
-            // 恢复原状时取消飞行
             if (!player.capabilities.isCreativeMode) {
                 if (player.capabilities.allowFlying) {
                     player.capabilities.allowFlying = false;
@@ -81,6 +78,70 @@ public class CommonForgeEventHandler {
                     player.sendPlayerAbilities();
                 }
             }
+        }
+    }
+
+    // 必须是 public static 才能被 MorphRequestMessage 调用
+    public static void triggerSkill(EntityPlayerMP player) {
+        MorphData data = MorphData.get(player);
+        if (data == null || data.getMorphId() == 0) return;
+
+        int morphId = data.getMorphId();
+        UUID uuid = player.getUniqueID();
+        long now = System.currentTimeMillis();
+        long lastTime = cooldowns.containsKey(uuid) ? cooldowns.get(uuid) : 0L;
+
+        int cd = 0;
+        if (morphId == 51) cd = 1;
+        else if (morphId == 50) cd = 10;
+        else if (morphId == 40) cd = 3;
+        else if (morphId == 56) cd = 2;
+        else if (morphId == 61) cd = 1;
+
+        if (cd > 0 && now - lastTime < cd * 1000L) {
+            player.addChatMessage(new ChatComponentText("§c技能冷却中！"));
+            return;
+        }
+
+        cooldowns.put(uuid, now);
+
+        if (morphId == 51) {
+            EntityArrow arrow = new EntityArrow(player.worldObj, player, 1.5F);
+            arrow.setDamage(2.0D);
+            player.worldObj.playSoundAtEntity(player, "random.bow", 1.0F, 1.0F / (player.worldObj.rand.nextFloat() * 0.4F + 1.2F) + 0.5F);
+            player.worldObj.spawnEntityInWorld(arrow);
+            player.swingItem();
+        } else if (morphId == 50) {
+            player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
+            player.setHealth(1.0F);
+        } else if (morphId == 40) {
+            for (int i = 0; i < 16; ++i) {
+                double d0 = player.posX + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
+                double d1 = player.posY + (double)(player.worldObj.rand.nextInt(32) - 16);
+                double d2 = player.posZ + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
+                player.setPositionAndUpdate(d0, d1, d2);
+                player.worldObj.playSoundEffect(player.posX, player.posY, player.posZ, "mob.endermen.portal", 1.0F, 1.0F);
+                break;
+            }
+            player.swingItem();
+        } else if (morphId == 56) {
+            Vec3 vec3 = player.getLookVec();
+            EntityLargeFireball fireball = new EntityLargeFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
+            fireball.posX = player.posX + vec3.xCoord * 2.0D;
+            fireball.posY = player.posY + (double)player.getEyeHeight() + vec3.yCoord * 2.0D;
+            fireball.posZ = player.posZ + vec3.zCoord * 2.0D;
+            player.worldObj.spawnEntityInWorld(fireball);
+            player.worldObj.playSoundAtEntity(player, "mob.ghast.fireball", 1.0F, 1.0F);
+            player.swingItem();
+        } else if (morphId == 61) {
+            Vec3 vec3 = player.getLookVec();
+            EntitySmallFireball fireball = new EntitySmallFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
+            fireball.posX = player.posX + vec3.xCoord * 2.0D;
+            fireball.posY = player.posY + (double)player.getEyeHeight() + vec3.yCoord * 2.0D;
+            fireball.posZ = player.posZ + vec3.zCoord * 2.0D;
+            player.worldObj.spawnEntityInWorld(fireball);
+            player.worldObj.playSoundAtEntity(player, "mob.blaze.breathe", 1.0F, 1.0F);
+            player.swingItem();
         }
     }
 
@@ -125,52 +186,6 @@ public class CommonForgeEventHandler {
     }
 
     @SubscribeEvent
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.action != PlayerInteractEvent.Action.RIGHT_CLICK_AIR && event.action != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-        EntityPlayer player = event.entityPlayer;
-        MorphData data = MorphData.get(player);
-        if (data == null || data.getMorphId() == 0) return;
-
-        int morphId = data.getMorphId();
-        if (player.worldObj.isRemote) return; 
-
-        if (morphId == 50) { // 苦力怕爆炸
-            player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
-            player.setHealth(1.0F);
-        } else if (morphId == 40) { // 末影人瞬移
-            for (int i = 0; i < 16; ++i) {
-                double d0 = player.posX + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
-                double d1 = player.posY + (double)(player.worldObj.rand.nextInt(32) - 16);
-                double d2 = player.posZ + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
-                player.setPositionAndUpdate(d0, d1, d2);
-                player.worldObj.playSoundEffect(player.posX, player.posY, player.posZ, "mob.endermen.portal", 1.0F, 1.0F);
-                break;
-            }
-            player.swingItem();
-        } else if (morphId == 56) { // 恶魂火球
-            Vec3 vec3 = player.getLookVec();
-            EntityLargeFireball fireball = new EntityLargeFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
-            fireball.posX = player.posX + vec3.xCoord * 2.0D;
-            fireball.posY = player.posY + (double)player.getEyeHeight() + vec3.yCoord * 2.0D;
-            fireball.posZ = player.posZ + vec3.zCoord * 2.0D;
-            player.worldObj.spawnEntityInWorld(fireball);
-            player.worldObj.playSoundAtEntity(player, "mob.ghast.fireball", 1.0F, 1.0F);
-            player.swingItem();
-        } else if (morphId == 61) { // 烈焰人小火球
-            Vec3 vec3 = player.getLookVec();
-            EntitySmallFireball fireball = new EntitySmallFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
-            fireball.posX = player.posX + vec3.xCoord * 2.0D;
-            fireball.posY = player.posY + (double)player.getEyeHeight() + vec3.yCoord * 2.0D;
-            fireball.posZ = player.posZ + vec3.zCoord * 2.0D;
-            player.worldObj.spawnEntityInWorld(fireball);
-            player.worldObj.playSoundAtEntity(player, "mob.blaze.breathe", 1.0F, 1.0F);
-            player.swingItem();
-        }
-    }
-
-    @SubscribeEvent
     public void onPlayerClone(PlayerEvent.Clone event) {
         if (event.entityPlayer == null) return;
 
@@ -185,4 +200,4 @@ public class CommonForgeEventHandler {
             MorphApi.applySize(event.entityPlayer, MorphApi.getMorphId(event.entityPlayer));
         }
     }
-                    }
+}
