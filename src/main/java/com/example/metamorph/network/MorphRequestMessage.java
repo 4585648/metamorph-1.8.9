@@ -57,8 +57,7 @@ public class MorphRequestMessage implements IMessage {
 
             final EntityPlayerMP player = ctx.getServerHandler().playerEntity;
 
-            // 1.8.9 的正确异步调度方式：使用 MinecraftServer 的调度器
-            player.mcServer.addScheduledTask(new Runnable() {
+            player.worldObj.addScheduledTask(new Runnable() {
                 @Override
                 public void run() {
                     if (message.getAction() == 1) {
