@@ -85,7 +85,14 @@ public class MorphApi {
     
     private static void setSizeReflect(EntityPlayer player, float width, float height) {
         try {
-            java.lang.reflect.Method method = net.minecraft.entity.Entity.class.getDeclaredMethod("setSize", float.class, float.class);
+            java.lang.reflect.Method method;
+            try {
+                // 尝试获取混淆后的方法名（游戏运行环境）
+                method = net.minecraft.entity.Entity.class.getDeclaredMethod("func_70105_a", float.class, float.class);
+            } catch (NoSuchMethodException e) {
+                // 尝试获取反混淆的方法名（开发环境）
+                method = net.minecraft.entity.Entity.class.getDeclaredMethod("setSize", float.class, float.class);
+            }
             method.setAccessible(true);
             method.invoke(player, width, height);
         } catch (Exception e) {
