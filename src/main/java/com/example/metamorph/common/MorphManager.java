@@ -1,5 +1,6 @@
 package com.example.metamorph.common;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -11,7 +12,9 @@ public class MorphManager {
     public static final int NONE = 0;
 
     private static final Map<UUID, Integer> clientMorphs = new ConcurrentHashMap<UUID, Integer>();
-    private static final Set<Integer> unlockedClient = new HashSet<Integer>();
+    
+    // 使用线程安全的集合
+    private static final Set<Integer> unlockedClient = Collections.synchronizedSet(new HashSet<Integer>());
 
     public static int getClient(UUID uuid) {
         Integer value = clientMorphs.get(uuid);
@@ -27,9 +30,11 @@ public class MorphManager {
     }
 
     public static void setUnlockedClient(Set<Integer> list) {
-        unlockedClient.clear();
-        unlockedClient.addAll(list);
-        unlockedClient.add(0); // 永远解锁恢复原状
+        synchronized (unlockedClient) {
+            unlockedClient.clear();
+            unlockedClient.addAll(list);
+            unlockedClient.add(0); // 永远解锁恢复原状
+        }
     }
 
     public static boolean isUnlockedClient(int id) {
