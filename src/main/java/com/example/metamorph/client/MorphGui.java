@@ -1,12 +1,11 @@
-// src/main/java/com/example/metamorph/client/MorphGui.java
 package com.example.metamorph.client;
 
 import com.example.metamorph.MetamorphMod;
 import com.example.metamorph.common.MorphConfig;
 import com.example.metamorph.common.MorphEntry;
+import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
 import com.example.metamorph.network.MorphRequestMessage;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 
@@ -34,19 +33,16 @@ public class MorphGui extends GuiScreen {
 
         for (MorphEntry entry : MorphRegistry.getAll()) {
             if (MorphConfig.isAllowed(entry.id)) {
-                entries.add(entry);
+                // 过滤：只显示客户端已解锁的
+                if (MorphManager.isUnlockedClient(entry.id)) {
+                    entries.add(entry);
+                }
             }
         }
 
         maxPage = Math.max(0, (entries.size() - 1) / PER_PAGE);
-
-        if (page < 0) {
-            page = 0;
-        }
-
-        if (page > maxPage) {
-            page = maxPage;
-        }
+        if (page < 0) page = 0;
+        if (page > maxPage) page = maxPage;
 
         int startX = width / 2 - (COLS * 95) / 2;
         int startY = height / 4;
@@ -57,18 +53,9 @@ public class MorphGui extends GuiScreen {
         for (int i = start; i < end; i++) {
             MorphEntry entry = entries.get(i);
             int index = i - start;
-
             int col = index % COLS;
             int row = index / COLS;
-
-            buttonList.add(new GuiButton(
-                    entry.id,
-                    startX + col * 95,
-                    startY + row * 24,
-                    90,
-                    20,
-                    entry.name
-            ));
+            buttonList.add(new GuiButton(entry.id, startX + col * 95, startY + row * 24, 90, 20, entry.name));
         }
 
         buttonList.add(new GuiButton(-1, width / 2 - 100, height - 32, 90, 20, "Prev"));
@@ -84,7 +71,6 @@ public class MorphGui extends GuiScreen {
             }
             return;
         }
-
         if (button.id == -2) {
             if (page < maxPage) {
                 page++;
@@ -100,14 +86,7 @@ public class MorphGui extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        drawCenteredString(
-                fontRendererObj,
-                "Select Morph - Page " + (page + 1) + "/" + (maxPage + 1),
-                width / 2,
-                10,
-                0xFFFFFF
-        );
-
+        drawCenteredString(fontRendererObj, "Select Morph - Page " + (page + 1) + "/" + (maxPage + 1), width / 2, 10, 0xFFFFFF);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
