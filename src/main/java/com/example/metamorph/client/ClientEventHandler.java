@@ -89,13 +89,13 @@ public class ClientEventHandler {
             event.setCanceled(true);
 
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            Render<EntityLivingBase> render = (Render<EntityLivingBase>) renderManager.getEntityRenderObject(morph);
+            
+            // 修正泛型问题，使用 Render<Entity>
+            Render<Entity> render = renderManager.getEntityRenderObject(morph);
             
             if (render != null) {
-                // 使用 doRender 直接渲染，这对于末影人等特殊实体更稳定
                 render.doRender(morph, player.posX - renderManager.viewerPosX, player.posY - renderManager.viewerPosY, player.posZ - renderManager.viewerPosZ, player.rotationYaw, event.partialRenderTick);
             } else {
-                // 如果获取渲染器失败，回退到默认简单渲染
                 renderManager.renderEntitySimple(morph, event.partialRenderTick);
             }
         }
