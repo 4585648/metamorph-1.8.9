@@ -4,7 +4,6 @@ import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityZombie;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.entity.projectile.EntityLargeFireball;
 import net.minecraft.entity.projectile.EntitySmallFireball;
 import net.minecraft.util.BlockPos;
@@ -119,13 +118,9 @@ public class CommonForgeEventHandler {
         int morphId = data.getMorphId();
         if (player.worldObj.isRemote) return; 
 
-        if (morphId == 51) { // 骷髅射箭
-            EntityArrow arrow = new EntityArrow(player.worldObj, player, 1.5F);
-            arrow.setDamage(2.0D);
-            player.worldObj.playSoundAtEntity(player, "random.bow", 1.0F, 1.0F / (player.worldObj.rand.nextFloat() * 0.4F + 1.2F) + 0.5F);
-            player.worldObj.spawnEntityInWorld(arrow);
-            player.swingItem();
-        } else if (morphId == 50) { // 苦力怕爆炸
+        // 注意：骷髅(51)的射箭功能已移除。
+
+        if (morphId == 50) { // 苦力怕爆炸
             player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
             player.setHealth(1.0F);
         } else if (morphId == 40) { // 末影人瞬移
