@@ -50,4 +50,4 @@ public class CommonFMLEventHandler {
             MetamorphMod.network.sendToAll(new MorphSyncMessage(event.player.getUniqueID(), 0));
         }
     }
-}                                                               }
+}
