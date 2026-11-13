@@ -9,7 +9,6 @@ import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
 import com.example.metamorph.network.MorphRequestMessage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
@@ -98,25 +97,11 @@ public class ClientEventHandler {
             event.setCanceled(true);
 
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            
-            // 使用原生的 Render 接口（不加泛型），避免编译报错
-            Render render = renderManager.getEntityRenderObject(morph);
-            
-            if (render != null) {
-                try {
-                    // 直接调用 doRender，传递正确的相对坐标，可渲染末影人、蜘蛛等特殊模型的附加层
-                    render.doRender(morph, 
-                            player.posX - renderManager.viewerPosX, 
-                            player.posY - renderManager.viewerPosY, 
-                            player.posZ - renderManager.viewerPosZ, 
-                            player.rotationYaw, 
-                            event.partialRenderTick);
-                } catch (Exception e) {
-                    // 兜底防崩
-                    renderManager.renderEntitySimple(morph, event.partialRenderTick);
-                }
-            } else {
-                renderManager.renderEntitySimple(morph, event.partialRenderTick);
+            try {
+                // 使用 renderEntityStatic，它能绕过部分视锥体剔除，更适合渲染替换模型
+                renderManager.renderEntityStatic(morph, event.partialRenderTick, false);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
@@ -144,10 +129,10 @@ public class ClientEventHandler {
         }
 
         private void syncFromPlayer(EntityPlayer player, EntityLivingBase entity) {
-            // 极其重要：必须给实体分配世界实例，否则末影人等实体无法渲染
             entity.worldObj = player.worldObj;
             
-            entity.setPosition(player.posX, player.posY, player.posZ);
+            // 强制设置坐标和旋转，确保包围盒和朝向同步
+            entity.setPositionAndRotation(player.posX, player.posY, player.posZ, player.rotationYaw, player.rotationPitch);
 
             entity.prevPosX = player.prevPosX;
             entity.prevPosY = player.prevPosY;
