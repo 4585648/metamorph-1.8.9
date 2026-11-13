@@ -67,9 +67,9 @@ public class CommonForgeEventHandler {
             MorphData data = MorphData.get(player);
 
             if (data != null && data.getMorphId() != 0) {
-                // 检查该怪物是否是因为受到玩家攻击而产生了“复仇目标”
-                // 如果复仇目标不是这个玩家，说明怪物是主动想打玩家，此时取消它的攻击目标
-                if (event.entityLiving.getRevengeTarget() != player) {
+                // 检查该怪物当前的AI目标是否是此玩家（如果是被玩家打了，AI目标就会变成玩家）
+                // 如果不是，说明怪物是主动想打玩家，此时取消它的攻击目标
+                if (event.entityLiving.getAITarget() != player) {
                     event.setCanceled(true);
                 }
             }
