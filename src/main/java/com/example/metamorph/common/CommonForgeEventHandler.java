@@ -50,6 +50,7 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
+        // 僵尸/骷髅白天燃烧
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -62,6 +63,7 @@ public class CommonForgeEventHandler {
             }
         }
 
+        // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
         if (morphId == 65 || morphId == 61 || morphId == 56) {
             if (!player.capabilities.isCreativeMode) {
                 if (!player.capabilities.allowFlying) {
@@ -70,7 +72,8 @@ public class CommonForgeEventHandler {
                 }
                 player.fallDistance = 0;
             }
-        } else if (morphId == 0) {
+        } else {
+            // 修正：只要不是这三种飞行生物（包括变成末影人、僵尸或变回玩家0），一律取消飞行
             if (!player.capabilities.isCreativeMode) {
                 if (player.capabilities.allowFlying) {
                     player.capabilities.allowFlying = false;
