@@ -3,6 +3,7 @@ package com.example.metamorph.client;
 import com.example.metamorph.common.MorphEntry;
 import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.RenderPlayer;
@@ -23,8 +24,9 @@ public class RenderMorphPlayer extends RenderPlayer {
         super(renderManager);
     }
 
+    // 修正：将参数类型改为 AbstractClientPlayer，以匹配 1.8.9 的 RenderPlayer 方法签名
     @Override
-    public void doRender(EntityPlayer player, double x, double y, double z, float entityYaw, float partialTicks) {
+    public void doRender(AbstractClientPlayer player, double x, double y, double z, float entityYaw, float partialTicks) {
         int morphId = MorphManager.getClient(player.getUniqueID());
 
         if (morphId > 0) {
