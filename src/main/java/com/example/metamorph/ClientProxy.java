@@ -1,7 +1,10 @@
 package com.example.metamorph;
 
 import com.example.metamorph.client.ClientEventHandler;
+import com.example.metamorph.client.RenderMorphPlayer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.FMLCommonHandler;
@@ -30,6 +33,11 @@ public class ClientProxy extends CommonProxy {
 
         FMLCommonHandler.instance().bus().register(new ClientEventHandler.KeyHandler());
         FMLCommonHandler.instance().bus().register(new ClientEventHandler.ClientTickHandler());
-        MinecraftForge.EVENT_BUS.register(new ClientEventHandler.RenderHandler());
+
+        // 替换游戏内置的玩家渲染器
+        Minecraft.getMinecraft().getRenderManager().entityRenderMap.put(
+                EntityPlayer.class, 
+                new RenderMorphPlayer(Minecraft.getMinecraft().getRenderManager())
+        );
     }
 }
