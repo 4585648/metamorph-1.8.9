@@ -196,7 +196,11 @@ public class ClientEventHandler {
             entity.hurtTime = player.hurtTime;
             entity.deathTime = player.deathTime;
 
-            entity.setFire(player.fire);
+            if (player.isBurning()) {
+                entity.setFire(2);
+            } else {
+                entity.extinguish();
+            }
             entity.ticksExisted = player.ticksExisted;
 
             for (int slot = 0; slot < 5; slot++) {
