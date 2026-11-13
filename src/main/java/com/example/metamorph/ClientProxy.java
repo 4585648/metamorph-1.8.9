@@ -1,4 +1,3 @@
-// src/main/java/com/example/metamorph/ClientProxy.java
 package com.example.metamorph;
 
 import com.example.metamorph.client.ClientEventHandler;
@@ -16,11 +15,18 @@ public class ClientProxy extends CommonProxy {
             "key.categories.misc"
     );
 
+    public static KeyBinding skillKey = new KeyBinding(
+            "Trigger Morph Skill",
+            Keyboard.KEY_G,
+            "key.categories.misc"
+    );
+
     @Override
     public void init() {
         super.init();
 
         ClientRegistry.registerKeyBinding(openMenu);
+        ClientRegistry.registerKeyBinding(skillKey);
 
         FMLCommonHandler.instance().bus().register(new ClientEventHandler.KeyHandler());
         FMLCommonHandler.instance().bus().register(new ClientEventHandler.ClientTickHandler());
