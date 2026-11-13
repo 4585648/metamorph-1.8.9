@@ -7,6 +7,7 @@ import com.example.metamorph.common.MorphEntry;
 import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
@@ -27,53 +28,31 @@ public class ClientEventHandler {
 
     @SideOnly(Side.CLIENT)
     public static class KeyHandler {
-
         @SubscribeEvent
         public void onKeyInput(InputEvent.KeyInputEvent event) {
-            if (!ClientProxy.openMenu.isPressed()) {
-                return;
-            }
-
+            if (!ClientProxy.openMenu.isPressed()) return;
             Minecraft mc = Minecraft.getMinecraft();
-
-            if (mc.thePlayer == null) {
-                return;
-            }
-
-            if (!MorphConfig.allowMenu) {
-                return;
-            }
-
-            if (MorphConfig.commandOnly && !mc.thePlayer.canCommandSenderUseCommand(2, "morph")) {
-                return;
-            }
-
+            if (mc.thePlayer == null || !MorphConfig.allowMenu) return;
+            if (MorphConfig.commandOnly && !mc.thePlayer.canCommandSenderUseCommand(2, "morph")) return;
             mc.displayGuiScreen(new MorphGui());
         }
     }
 
     @SideOnly(Side.CLIENT)
     public static class ClientTickHandler {
-
         private final Map<UUID, Integer> lastMorph = new HashMap<UUID, Integer>();
 
         @SubscribeEvent
         public void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) {
-                return;
-            }
-
+            if (event.phase != TickEvent.Phase.END) return;
             Minecraft mc = Minecraft.getMinecraft();
-
             if (mc.theWorld == null) {
                 lastMorph.clear();
                 return;
             }
-
             for (EntityPlayer player : mc.theWorld.playerEntities) {
                 int morphId = MorphManager.getClient(player.getUniqueID());
                 Integer last = lastMorph.get(player.getUniqueID());
-
                 if (last == null || last.intValue() != morphId) {
                     MorphApi.applySize(player, morphId);
                     lastMorph.put(player.getUniqueID(), morphId);
@@ -84,12 +63,8 @@ public class ClientEventHandler {
 
     @SideOnly(Side.CLIENT)
     public static class RenderHandler {
-
-        private final Map<UUID, EntityLivingBase> morphEntities =
-                new HashMap<UUID, EntityLivingBase>();
-
-        private final Map<UUID, Integer> morphEntityIds =
-                new HashMap<UUID, Integer>();
+        private final Map<UUID, EntityLivingBase> morphEntities = new HashMap<UUID, EntityLivingBase>();
+        private final Map<UUID, Integer> morphEntityIds = new HashMap<UUID, Integer>();
 
         @SubscribeEvent
         public void onRenderPlayer(RenderPlayerEvent.Pre event) {
@@ -108,30 +83,31 @@ public class ClientEventHandler {
             }
 
             EntityLivingBase morph = getOrCreateMorphEntity(player, entry.id);
-            if (morph == null) {
-                return;
-            }
+            if (morph == null) return;
 
             syncFromPlayer(player, morph);
-
             event.setCanceled(true);
 
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            renderManager.renderEntitySimple(morph, event.partialRenderTick);
+            Render<EntityLivingBase> render = (Render<EntityLivingBase>) renderManager.getEntityRenderObject(morph);
+            
+            if (render != null) {
+                // 使用 doRender 直接渲染，这对于末影人等特殊实体更稳定
+                render.doRender(morph, player.posX - renderManager.viewerPosX, player.posY - renderManager.viewerPosY, player.posZ - renderManager.viewerPosZ, player.rotationYaw, event.partialRenderTick);
+            } else {
+                // 如果获取渲染器失败，回退到默认简单渲染
+                renderManager.renderEntitySimple(morph, event.partialRenderTick);
+            }
         }
 
         private void clearCache(UUID uuid) {
             EntityLivingBase old = morphEntities.remove(uuid);
             morphEntityIds.remove(uuid);
-
-            if (old != null) {
-                old.setDead();
-            }
+            if (old != null) old.setDead();
         }
 
         private EntityLivingBase getOrCreateMorphEntity(EntityPlayer player, int morphId) {
             UUID uuid = player.getUniqueID();
-
             Integer oldId = morphEntityIds.get(uuid);
             EntityLivingBase cached = morphEntities.get(uuid);
 
@@ -139,46 +115,34 @@ public class ClientEventHandler {
                 return cached;
             }
 
-            if (cached != null) {
-                cached.setDead();
-            }
+            if (cached != null) cached.setDead();
 
             Entity entity = EntityList.createEntityByID(morphId, player.worldObj);
-
-            if (!(entity instanceof EntityLivingBase)) {
-                return null;
-            }
+            if (!(entity instanceof EntityLivingBase)) return null;
 
             EntityLivingBase living = (EntityLivingBase) entity;
-
             morphEntities.put(uuid, living);
             morphEntityIds.put(uuid, morphId);
-
             return living;
         }
 
         private void syncFromPlayer(EntityPlayer player, EntityLivingBase entity) {
             entity.worldObj = player.worldObj;
-
             entity.setPosition(player.posX, player.posY, player.posZ);
 
             entity.prevPosX = player.prevPosX;
             entity.prevPosY = player.prevPosY;
             entity.prevPosZ = player.prevPosZ;
-
             entity.lastTickPosX = player.lastTickPosX;
             entity.lastTickPosY = player.lastTickPosY;
             entity.lastTickPosZ = player.lastTickPosZ;
 
             entity.rotationYaw = player.rotationYaw;
             entity.prevRotationYaw = player.prevRotationYaw;
-
             entity.rotationPitch = player.rotationPitch;
             entity.prevRotationPitch = player.prevRotationPitch;
-
             entity.rotationYawHead = player.rotationYawHead;
             entity.prevRotationYawHead = player.prevRotationYawHead;
-
             entity.renderYawOffset = player.renderYawOffset;
             entity.prevRenderYawOffset = player.prevRenderYawOffset;
 
@@ -189,18 +153,15 @@ public class ClientEventHandler {
             entity.limbSwing = player.limbSwing;
             entity.limbSwingAmount = player.limbSwingAmount;
             entity.prevLimbSwingAmount = player.prevLimbSwingAmount;
-
             entity.swingProgress = player.swingProgress;
             entity.prevSwingProgress = player.prevSwingProgress;
 
             entity.hurtTime = player.hurtTime;
             entity.deathTime = player.deathTime;
 
-            if (player.isBurning()) {
-                entity.setFire(2);
-            } else {
-                entity.extinguish();
-            }
+            if (player.isBurning()) entity.setFire(2);
+            else entity.extinguish();
+            
             entity.ticksExisted = player.ticksExisted;
 
             for (int slot = 0; slot < 5; slot++) {
