@@ -1,15 +1,18 @@
 package com.example.metamorph.common;
 
 import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.projectile.EntityArrow;
+import net.minecraft.entity.projectile.EntityLargeFireball;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.Vec3;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class CommonForgeEventHandler {
@@ -46,7 +49,6 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
-        // 变形为僵尸(54)或骷髅(51)时的白天燃烧逻辑
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -61,7 +63,6 @@ public class CommonForgeEventHandler {
         }
     }
 
-    // 拦截：当怪物试图锁定变形玩家时，如果是主动锁定（非被激怒），直接清空目标
     @SubscribeEvent
     public void onSetAttackTarget(LivingSetAttackTargetEvent event) {
         if (event.target instanceof EntityPlayer && event.entityLiving instanceof EntityLiving && event.entityLiving instanceof IMob) {
@@ -70,7 +71,6 @@ public class CommonForgeEventHandler {
 
             if (data != null && data.getMorphId() != 0) {
                 EntityLiving mob = (EntityLiving) event.entityLiving;
-                // 如果怪物的AITarget不是该玩家，说明玩家没打它，直接强制清空它的攻击目标
                 if (mob.getAITarget() != player) {
                     mob.setAttackTarget(null);
                 }
@@ -78,7 +78,6 @@ public class CommonForgeEventHandler {
         }
     }
 
-    // 兜底拦截：如果怪物依然对你造成了伤害（如史莱姆碰撞），如果是主动攻击则直接取消伤害
     @SubscribeEvent
     public void onLivingAttack(LivingAttackEvent event) {
         if (event.entityLiving instanceof EntityPlayer) {
@@ -88,7 +87,6 @@ public class CommonForgeEventHandler {
             if (data != null && data.getMorphId() != 0) {
                 if (event.source.getEntity() instanceof EntityLiving && event.source.getEntity() instanceof IMob) {
                     EntityLiving mob = (EntityLiving) event.source.getEntity();
-                    // 如果玩家没有打它，取消怪物造成的伤害
                     if (mob.getAITarget() != player) {
                         event.setCanceled(true);
                     }
@@ -97,11 +95,57 @@ public class CommonForgeEventHandler {
         }
     }
 
+    // 新增：右键触发主动技能
     @SubscribeEvent
-    public void onPlayerClone(PlayerEvent.Clone event) {
-        if (event.entityPlayer == null) {
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.action != PlayerInteractEvent.Action.RIGHT_CLICK_AIR && event.action != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
             return;
         }
+        EntityPlayer player = event.entityPlayer;
+        MorphData data = MorphData.get(player);
+        if (data == null || data.getMorphId() == 0) return;
+
+        int morphId = data.getMorphId();
+        if (player.worldObj.isRemote) return; // 仅在服务端执行技能效果
+
+        if (morphId == 51) {
+            // 骷髅：射箭
+            EntityArrow arrow = new EntityArrow(player.worldObj, player, 1.5F);
+            arrow.setDamage(2.0D);
+            player.worldObj.playSoundAtEntity(player, "random.bow", 1.0F, 1.0F / (player.worldObj.rand.nextFloat() * 0.4F + 1.2F) + 0.5F);
+            player.worldObj.spawnEntityInWorld(arrow);
+            player.swingItem();
+        } else if (morphId == 50) {
+            // 苦力怕：爆炸（保留1滴血）
+            player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
+            player.setHealth(1.0F);
+        } else if (morphId == 40) {
+            // 末影人：随机瞬移
+            for (int i = 0; i < 16; ++i) {
+                double d0 = player.posX + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
+                double d1 = player.posY + (double)(player.worldObj.rand.nextInt(32) - 16);
+                double d2 = player.posZ + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
+                player.setPositionAndUpdate(d0, d1, d2);
+                player.worldObj.playSoundEffect(player.posX, player.posY, player.posZ, "mob.endermen.portal", 1.0F, 1.0F);
+                break;
+            }
+            player.swingItem();
+        } else if (morphId == 56) {
+            // 恶魂：发射火球
+            Vec3 vec3 = player.getLookVec();
+            EntityLargeFireball fireball = new EntityLargeFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
+            fireball.posX = player.posX + vec3.xCoord * 2.0D;
+            fireball.posY = player.posY + (double)player.getEyeHeight() + vec3.yCoord * 2.0D;
+            fireball.posZ = player.posZ + vec3.zCoord * 2.0D;
+            player.worldObj.spawnEntityInWorld(fireball);
+            player.worldObj.playSoundAtEntity(player, "mob.ghast.fireball", 1.0F, 1.0F);
+            player.swingItem();
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerClone(PlayerEvent.Clone event) {
+        if (event.entityPlayer == null) return;
 
         MorphData oldData = MorphData.get((EntityPlayer) event.original);
         MorphData newData = MorphData.get(event.entityPlayer);
