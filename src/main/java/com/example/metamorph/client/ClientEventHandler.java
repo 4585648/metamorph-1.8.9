@@ -117,7 +117,7 @@ public class ClientEventHandler {
             event.setCanceled(true);
 
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
-            renderManager.renderEntitySimple(morph, event.partialRenderTicks);
+            renderManager.renderEntitySimple(morph, event.partialRenderTick);
         }
 
         private void clearCache(UUID uuid) {
@@ -196,7 +196,7 @@ public class ClientEventHandler {
             entity.hurtTime = player.hurtTime;
             entity.deathTime = player.deathTime;
 
-            entity.fire = player.fire;
+            entity.setFire(player.fire);
             entity.ticksExisted = player.ticksExisted;
 
             for (int slot = 0; slot < 5; slot++) {
@@ -204,4 +204,4 @@ public class ClientEventHandler {
             }
         }
     }
-              }
+}
