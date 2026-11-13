@@ -24,6 +24,7 @@ import java.util.UUID;
 
 public class CommonForgeEventHandler {
 
+    // 记录每个玩家的技能冷却时间戳 (毫秒)
     private static final Map<UUID, Long> cooldowns = new HashMap<UUID, Long>();
 
     @SubscribeEvent
@@ -50,6 +51,7 @@ public class CommonForgeEventHandler {
             entry.ability.onUpdate(player);
         }
 
+        // 僵尸/骷髅白天燃烧
         if (morphId == 54 || morphId == 51) {
             if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
                 float brightness = player.getBrightness(1.0F);
@@ -62,6 +64,7 @@ public class CommonForgeEventHandler {
             }
         }
 
+        // 飞行能力逻辑（蝙蝠 65、烈焰人 61、恶魂 56）
         if (morphId == 65 || morphId == 61 || morphId == 56) {
             if (!player.capabilities.isCreativeMode) {
                 if (!player.capabilities.allowFlying) {
@@ -81,7 +84,7 @@ public class CommonForgeEventHandler {
         }
     }
 
-    // 必须是 public static 才能被 MorphRequestMessage 调用
+    // 供网络包调用的技能触发方法
     public static void triggerSkill(EntityPlayerMP player) {
         MorphData data = MorphData.get(player);
         if (data == null || data.getMorphId() == 0) return;
@@ -91,12 +94,13 @@ public class CommonForgeEventHandler {
         long now = System.currentTimeMillis();
         long lastTime = cooldowns.containsKey(uuid) ? cooldowns.get(uuid) : 0L;
 
+        // 判定冷却 (单位：秒)
         int cd = 0;
-        if (morphId == 51) cd = 1;
-        else if (morphId == 50) cd = 10;
-        else if (morphId == 40) cd = 3;
-        else if (morphId == 56) cd = 2;
-        else if (morphId == 61) cd = 1;
+        if (morphId == 51) cd = 1;       // 骷髅 1秒
+        else if (morphId == 50) cd = 10; // 苦力怕 10秒
+        else if (morphId == 40) cd = 3;  // 末影人 3秒
+        else if (morphId == 56) cd = 2;  // 恶魂 2秒
+        else if (morphId == 61) cd = 1;  // 烈焰人 1秒
 
         if (cd > 0 && now - lastTime < cd * 1000L) {
             player.addChatMessage(new ChatComponentText("§c技能冷却中！"));
@@ -106,15 +110,18 @@ public class CommonForgeEventHandler {
         cooldowns.put(uuid, now);
 
         if (morphId == 51) {
+            // 骷髅射箭
             EntityArrow arrow = new EntityArrow(player.worldObj, player, 1.5F);
             arrow.setDamage(2.0D);
             player.worldObj.playSoundAtEntity(player, "random.bow", 1.0F, 1.0F / (player.worldObj.rand.nextFloat() * 0.4F + 1.2F) + 0.5F);
             player.worldObj.spawnEntityInWorld(arrow);
             player.swingItem();
         } else if (morphId == 50) {
+            // 苦力怕爆炸
             player.worldObj.createExplosion(player, player.posX, player.posY, player.posZ, 3.0F, true);
             player.setHealth(1.0F);
         } else if (morphId == 40) {
+            // 末影人瞬移
             for (int i = 0; i < 16; ++i) {
                 double d0 = player.posX + (player.worldObj.rand.nextDouble() - 0.5D) * 32.0D;
                 double d1 = player.posY + (double)(player.worldObj.rand.nextInt(32) - 16);
@@ -125,6 +132,7 @@ public class CommonForgeEventHandler {
             }
             player.swingItem();
         } else if (morphId == 56) {
+            // 恶魂火球
             Vec3 vec3 = player.getLookVec();
             EntityLargeFireball fireball = new EntityLargeFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
             fireball.posX = player.posX + vec3.xCoord * 2.0D;
@@ -134,6 +142,7 @@ public class CommonForgeEventHandler {
             player.worldObj.playSoundAtEntity(player, "mob.ghast.fireball", 1.0F, 1.0F);
             player.swingItem();
         } else if (morphId == 61) {
+            // 烈焰人小火球
             Vec3 vec3 = player.getLookVec();
             EntitySmallFireball fireball = new EntitySmallFireball(player.worldObj, player, 1.0D, 1.0D, 1.0D);
             fireball.posX = player.posX + vec3.xCoord * 2.0D;
