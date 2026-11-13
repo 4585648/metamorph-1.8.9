@@ -1,4 +1,3 @@
-// src/main/java/com/example/metamorph/common/MorphApi.java
 package com.example.metamorph.common;
 
 import com.example.metamorph.MetamorphMod;
@@ -78,9 +77,19 @@ public class MorphApi {
         MorphEntry entry = MorphRegistry.get(morphId);
 
         if (morphId == 0 || entry == null) {
-            player.setSize(0.6F, 1.8F);
+            setSizeReflect(player, 0.6F, 1.8F);
         } else {
-            player.setSize(entry.width, entry.height);
+            setSizeReflect(player, entry.width, entry.height);
+        }
+    }
+    
+    private static void setSizeReflect(EntityPlayer player, float width, float height) {
+        try {
+            java.lang.reflect.Method method = net.minecraft.entity.Entity.class.getDeclaredMethod("setSize", float.class, float.class);
+            method.setAccessible(true);
+            method.invoke(player, width, height);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
