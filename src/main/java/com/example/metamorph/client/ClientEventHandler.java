@@ -1,11 +1,13 @@
 package com.example.metamorph.client;
 
 import com.example.metamorph.ClientProxy;
+import com.example.metamorph.MetamorphMod;
 import com.example.metamorph.common.MorphApi;
 import com.example.metamorph.common.MorphConfig;
 import com.example.metamorph.common.MorphEntry;
 import com.example.metamorph.common.MorphManager;
 import com.example.metamorph.common.MorphRegistry;
+import com.example.metamorph.network.MorphRequestMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
@@ -29,11 +31,20 @@ public class ClientEventHandler {
     public static class KeyHandler {
         @SubscribeEvent
         public void onKeyInput(InputEvent.KeyInputEvent event) {
-            if (!ClientProxy.openMenu.isPressed()) return;
             Minecraft mc = Minecraft.getMinecraft();
-            if (mc.thePlayer == null || !MorphConfig.allowMenu) return;
-            if (MorphConfig.commandOnly && !mc.thePlayer.canCommandSenderUseCommand(2, "morph")) return;
-            mc.displayGuiScreen(new MorphGui());
+            if (mc.thePlayer == null) return;
+
+            // 变形菜单按键
+            if (ClientProxy.openMenu.isPressed()) {
+                if (!MorphConfig.allowMenu) return;
+                if (MorphConfig.commandOnly && !mc.thePlayer.canCommandSenderUseCommand(2, "morph")) return;
+                mc.displayGuiScreen(new MorphGui());
+            }
+
+            // 技能释放按键 (G键)
+            if (ClientProxy.skillKey.isPressed()) {
+                MetamorphMod.network.sendToServer(new MorphRequestMessage(0, 1));
+            }
         }
     }
 
@@ -82,24 +93,15 @@ public class ClientEventHandler {
             }
 
             EntityLivingBase morph = getOrCreateMorphEntity(player, entry.id);
-            if (morph == null) {
-                return; // 创建失败，继续渲染玩家模型
-            }
+            if (morph == null) return;
 
-            // 同步位置和状态
             syncFromPlayer(player, morph);
-
-            // 取消原版玩家渲染
             event.setCanceled(true);
 
-            // 恢复使用最稳定的原生渲染方法
             RenderManager renderManager = Minecraft.getMinecraft().getRenderManager();
             try {
                 renderManager.renderEntitySimple(morph, event.partialRenderTick);
-            } catch (Exception e) {
-                // 如果渲染末影人等特殊实体时崩溃，捕获异常并跳过，防止整个游戏闪退
-                e.printStackTrace();
-            }
+            } catch (Exception ignored) {}
         }
 
         private void clearCache(UUID uuid) {
@@ -113,10 +115,7 @@ public class ClientEventHandler {
             Integer oldId = morphEntityIds.get(uuid);
             EntityLivingBase cached = morphEntities.get(uuid);
 
-            if (cached != null && oldId != null && oldId == morphId) {
-                return cached;
-            }
-
+            if (cached != null && oldId != null && oldId == morphId) return cached;
             if (cached != null) cached.setDead();
 
             Entity entity = EntityList.createEntityByID(morphId, player.worldObj);
@@ -130,14 +129,12 @@ public class ClientEventHandler {
 
         private void syncFromPlayer(EntityPlayer player, EntityLivingBase entity) {
             entity.setPosition(player.posX, player.posY, player.posZ);
-
             entity.prevPosX = player.prevPosX;
             entity.prevPosY = player.prevPosY;
             entity.prevPosZ = player.prevPosZ;
             entity.lastTickPosX = player.lastTickPosX;
             entity.lastTickPosY = player.lastTickPosY;
             entity.lastTickPosZ = player.lastTickPosZ;
-
             entity.rotationYaw = player.rotationYaw;
             entity.prevRotationYaw = player.prevRotationYaw;
             entity.rotationPitch = player.rotationPitch;
@@ -146,26 +143,20 @@ public class ClientEventHandler {
             entity.prevRotationYawHead = player.prevRotationYawHead;
             entity.renderYawOffset = player.renderYawOffset;
             entity.prevRenderYawOffset = player.prevRenderYawOffset;
-
             entity.setSneaking(player.isSneaking());
             entity.setSprinting(player.isSprinting());
             entity.setInvisible(player.isInvisible());
-
             entity.limbSwing = player.limbSwing;
             entity.limbSwingAmount = player.limbSwingAmount;
             entity.prevLimbSwingAmount = player.prevLimbSwingAmount;
             entity.swingProgress = player.swingProgress;
             entity.prevSwingProgress = player.prevSwingProgress;
-
             entity.hurtTime = player.hurtTime;
             entity.deathTime = player.deathTime;
-
             if (player.isBurning()) entity.setFire(2);
             else entity.extinguish();
-            
             entity.ticksExisted = player.ticksExisted;
 
-            // 针对末影人等没有物品渲染层的生物，屏蔽装备同步以防渲染崩溃
             if (entity.getClass().getName().contains("Enderman") || 
                 entity.getClass().getName().contains("Creeper") || 
                 entity.getClass().getName().contains("Slime") || 
@@ -178,8 +169,7 @@ public class ClientEventHandler {
                 for (int slot = 0; slot < 5; slot++) {
                     entity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
-                }
+}
