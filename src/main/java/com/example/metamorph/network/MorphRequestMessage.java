@@ -1,4 +1,3 @@
-// src/main/java/com/example/metamorph/network/MorphRequestMessage.java
 package com.example.metamorph.network;
 
 import com.example.metamorph.common.MorphApi;
@@ -43,13 +42,8 @@ public class MorphRequestMessage implements IMessage {
             }
 
             final EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-
-            player.worldObj.addScheduledTask(new Runnable() {
-                @Override
-                public void run() {
-                    MorphApi.setMorph(player, message.getMorphId(), false);
-                }
-            });
+            
+            MorphApi.setMorph(player, message.getMorphId(), false);
 
             return null;
         }
