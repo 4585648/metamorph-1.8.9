@@ -1,7 +1,7 @@
-// src/main/java/com/example/metamorph/common/CommonForgeEventHandler.java
 package com.example.metamorph.common;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.BlockPos;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -34,10 +34,25 @@ public class CommonForgeEventHandler {
             return;
         }
 
-        MorphEntry entry = MorphRegistry.get(data.getMorphId());
+        int morphId = data.getMorphId();
+        MorphEntry entry = MorphRegistry.get(morphId);
 
         if (entry != null && entry.ability != null) {
             entry.ability.onUpdate(player);
+        }
+
+        // 新增：变形为僵尸(54)或骷髅(51)时的白天燃烧逻辑
+        if (morphId == 54 || morphId == 51) {
+            if (player.worldObj.isDaytime() && !player.isImmuneToFire()) {
+                float brightness = player.getBrightness(1.0F);
+                BlockPos pos = new BlockPos(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+                
+                if (brightness > 0.5F && player.worldObj.canBlockSeeSky(pos)) {
+                    if (player.worldObj.rand.nextFloat() * 30.0F < (brightness - 0.4F) * 2.0F) {
+                        player.setFire(8);
+                    }
+                }
+            }
         }
     }
 
