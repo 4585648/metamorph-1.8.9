@@ -29,7 +29,7 @@ public class MorphRegistry {
     }
 
     private static void registerDefaults() {
-        register(new MorphEntry(40, "Enderman", 0.6F, 2.9F, new MorphAbilities.EndermanAbility()));
+        register(new MorphEntry(58, "Enderman", 0.6F, 2.9F, new MorphAbilities.EndermanAbility()));
         register(new MorphEntry(50, "Creeper", 0.6F, 1.7F, new MorphAbilities.CreeperAbility()));
         register(new MorphEntry(51, "Skeleton", 0.6F, 1.95F, new MorphAbilities.SkeletonAbility()));
         register(new MorphEntry(52, "Spider", 1.4F, 0.9F, new MorphAbilities.SpiderAbility()));
