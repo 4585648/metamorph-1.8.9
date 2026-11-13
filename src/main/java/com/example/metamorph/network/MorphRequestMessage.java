@@ -1,5 +1,6 @@
 package com.example.metamorph.network;
 
+import com.example.metamorph.common.CommonForgeEventHandler;
 import com.example.metamorph.common.MorphApi;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -11,26 +12,39 @@ import net.minecraftforge.fml.relauncher.Side;
 public class MorphRequestMessage implements IMessage {
 
     private int morphId;
+    private int action; // 0 = 变形, 1 = 释放技能
 
     public MorphRequestMessage() {
     }
 
     public MorphRequestMessage(int morphId) {
         this.morphId = morphId;
+        this.action = 0;
+    }
+
+    public MorphRequestMessage(int morphId, int action) {
+        this.morphId = morphId;
+        this.action = action;
     }
 
     public int getMorphId() {
         return morphId;
     }
 
+    public int getAction() {
+        return action;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         morphId = buf.readInt();
+        action = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(morphId);
+        buf.writeInt(action);
     }
 
     public static class Handler implements IMessageHandler<MorphRequestMessage, IMessage> {
@@ -42,8 +56,17 @@ public class MorphRequestMessage implements IMessage {
             }
 
             final EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-            
-            MorphApi.setMorph(player, message.getMorphId(), false);
+
+            player.worldObj.addScheduledTask(new Runnable() {
+                @Override
+                public void run() {
+                    if (message.getAction() == 1) {
+                        CommonForgeEventHandler.triggerSkill(player);
+                    } else {
+                        MorphApi.setMorph(player, message.getMorphId(), false);
+                    }
+                }
+            });
 
             return null;
         }
