@@ -2,7 +2,15 @@
 // For those who want the bleeding edge
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
+maven {
+    name = "forge"
+    url = "https://maven.minecraftforge.net/"
+}
+maven {
+    name = "sonatype"
+    url = "https://oss.sonatype.org/content/repositories/snapshots/"
+}
         maven {
             name = "forge"
             url = "http://files.minecraftforge.net/maven"
