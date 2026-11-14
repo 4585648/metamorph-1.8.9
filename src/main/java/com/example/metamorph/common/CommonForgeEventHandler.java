@@ -70,10 +70,8 @@ public class CommonForgeEventHandler {
                     morphEntity.noClip = true; // 无碰撞
                     morphEntity.setAlwaysRenderNameTag(false);
                     
-                    // 防止被其他怪物攻击
-                    if (morphEntity instanceof IMob) {
-                        ((IMob)morphEntity).setAttackTarget(null);
-                    }
+                    // 防止被其他怪物攻击，直接调用 EntityLiving 的方法
+                    morphEntity.setAttackTarget(null);
                     
                     player.worldObj.spawnEntityInWorld(morphEntity);
                     clientMorphs.put(player.getUniqueID(), morphEntity);
