@@ -1,7 +1,5 @@
 package com.example.metamorph.common;
 
-import com.example.metamorph.MetamorphMod;
-import com.example.metamorph.network.MorphUnlockMessage;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
@@ -17,7 +15,6 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -30,40 +27,13 @@ import java.util.UUID;
 public class CommonForgeEventHandler {
 
     private static final Map<UUID, Long> cooldowns = new HashMap<UUID, Long>();
+    // 记录每个玩家对应的替身实体
+    public static final Map<UUID, EntityLiving> clientMorphs = new HashMap<UUID, EntityLiving>();
 
     @SubscribeEvent
     public void onEntityConstruct(EntityEvent.EntityConstructing event) {
         if (event.entity instanceof EntityPlayer) {
             MorphData.register((EntityPlayer) event.entity);
-        }
-    }
-
-    // 修正击杀解锁逻辑，兼容远程击杀，直接通过实体 ID 匹配
-    @SubscribeEvent
-    public void onLivingDeath(LivingDeathEvent event) {
-        if (event.entity.worldObj.isRemote) return;
-
-        Entity source = event.source.getEntity();
-        EntityPlayerMP player = null;
-
-        if (source instanceof EntityPlayerMP) {
-            player = (EntityPlayerMP) source;
-        } else if (event.source.getSourceOfDamage() instanceof EntityPlayerMP) {
-            player = (EntityPlayerMP) event.source.getSourceOfDamage();
-        }
-
-        if (player != null) {
-            int entityId = EntityList.getEntityID(event.entity);
-            MorphEntry entry = MorphRegistry.get(entityId);
-            
-            if (entry != null) {
-                MorphData data = MorphData.get(player);
-                if (data != null && !data.isUnlocked(entry.id)) {
-                    data.unlock(entry.id);
-                    player.addChatMessage(new ChatComponentText("§a你解锁了新的变形: " + entry.name));
-                    MetamorphMod.network.sendTo(new MorphUnlockMessage(data.getUnlocked()), player);
-                }
-            }
         }
     }
 
@@ -78,8 +48,68 @@ public class CommonForgeEventHandler {
         if (data == null) return;
 
         int morphId = data.getMorphId();
-        MorphEntry entry = MorphRegistry.get(morphId);
+        EntityLiving morphEntity = clientMorphs.get(player.getUniqueID());
 
+        // 【核心逻辑】管理服务端生成的替身实体
+        if (morphId > 0) {
+            // 玩家隐藏
+            if (!player.isInvisible()) {
+                player.setInvisible(true);
+            }
+            
+            // 如果没有替身或替身类型变了，重新生成
+            if (morphEntity == null || EntityList.getEntityID(morphEntity) != morphId) {
+                if (morphEntity != null) {
+                    morphEntity.setDead();
+                    clientMorphs.remove(player.getUniqueID());
+                }
+                Entity entity = EntityList.createEntityByID(morphId, player.worldObj);
+                if (entity instanceof EntityLiving) {
+                    morphEntity = (EntityLiving) entity;
+                    morphEntity.setPositionAndRotation(player.posX, player.posY, player.posZ, player.rotationYaw, player.rotationPitch);
+                    morphEntity.noClip = true; // 无碰撞
+                    morphEntity.setAlwaysRenderNameTag(false);
+                    
+                    // 防止被其他怪物攻击
+                    if (morphEntity instanceof IMob) {
+                        ((IMob)morphEntity).setAttackTarget(null);
+                    }
+                    
+                    player.worldObj.spawnEntityInWorld(morphEntity);
+                    clientMorphs.put(player.getUniqueID(), morphEntity);
+                }
+            } else {
+                // 同步位置和动作
+                morphEntity.setPositionAndRotation(player.posX, player.posY, player.posZ, player.rotationYaw, player.rotationPitch);
+                morphEntity.rotationYawHead = player.rotationYawHead;
+                morphEntity.renderYawOffset = player.renderYawOffset;
+                morphEntity.setSneaking(player.isSneaking());
+                
+                morphEntity.limbSwing = player.limbSwing;
+                morphEntity.limbSwingAmount = player.limbSwingAmount;
+                morphEntity.prevLimbSwingAmount = player.limbSwingAmount;
+                morphEntity.swingProgress = player.swingProgress;
+                morphEntity.prevSwingProgress = player.swingProgress;
+                
+                if (player.isBurning()) morphEntity.setFire(2);
+                else morphEntity.extinguish();
+                
+                for (int slot = 0; slot < 5; slot++) {
+                    morphEntity.setCurrentItemOrArmor(slot, player.getEquipmentInSlot(slot));
+                }
+            }
+        } else {
+            // 变回原形
+            if (player.isInvisible()) {
+                player.setInvisible(false);
+            }
+            if (morphEntity != null) {
+                morphEntity.setDead();
+                clientMorphs.remove(player.getUniqueID());
+            }
+        }
+
+        MorphEntry entry = MorphRegistry.get(morphId);
         if (entry != null && entry.ability != null) {
             entry.ability.onUpdate(player);
         }
@@ -232,4 +262,4 @@ public class CommonForgeEventHandler {
             MorphApi.applySize(event.entityPlayer, MorphApi.getMorphId(event.entityPlayer));
         }
     }
-                                                }
+}
